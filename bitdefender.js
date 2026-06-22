@@ -9,8 +9,8 @@ function getAuthHeader() {
   return `Basic ${encoded}`;
 }
 
-async function rpc(endpoint, method, params = {}) {
-  const url = `${BASE_URL}/v1.0/jsonrpc/${endpoint}`;
+async function rpc(endpoint, method, params = {}, version = 'v1.0') {
+  const url = `${BASE_URL}/${version}/jsonrpc/${endpoint}`;
   const body = {
     id: String(requestId++),
     jsonrpc: '2.0',
@@ -29,10 +29,8 @@ async function rpc(endpoint, method, params = {}) {
 
   const text = await res.text();
   if (!res.ok) throw new Error(`Bitdefender HTTP error ${res.status}: ${text}`);
-
   const json = JSON.parse(text);
   if (json.error) throw new Error(`Bitdefender RPC error: ${JSON.stringify(json.error)}`);
-
   return json.result;
 }
 
@@ -61,22 +59,56 @@ export async function moveEndpoints({ endpointIds, groupId }) {
   return rpc('network', 'moveEndpoints', { endpointIds, groupId });
 }
 
-// --- INCIDENTS / THREATS ---
+// --- COMPANIES ---
+export async function getCompanyDetails({ companyId }) {
+  return rpc('companies', 'getCompanyDetails', { companyId });
+}
+
+export async function findCompaniesByName({ name }) {
+  return rpc('companies', 'findCompaniesByName', { name });
+}
+
+export async function getCompanyDetailsByUser({ userId }) {
+  return rpc('companies', 'getCompanyDetailsByUser', { userId });
+}
+
+// --- INCIDENTS (v1.2) ---
+export async function getIncidentsList({ page = 1, perPage = 30, filters = {} } = {}) {
+  return rpc('incidents', 'getIncidentsList', { page, perPage, ...filters }, 'v1.2');
+}
+
+export async function getIncident({ incidentId }) {
+  return rpc('incidents', 'getIncident', { incidentId }, 'v1.2');
+}
+
+export async function getIncidentsByIds({ incidentIds }) {
+  return rpc('incidents', 'getIncidentsByIds', { incidentIds }, 'v1.2');
+}
+
+export async function changeIncidentStatus({ incidentId, status }) {
+  // status: 1=Open, 2=Closed, 3=In Progress
+  return rpc('incidents', 'changeIncidentStatus', { incidentId, status });
+}
+
+export async function updateIncidentNote({ incidentId, note }) {
+  return rpc('incidents', 'updateIncidentNote', { incidentId, note }, 'v1.1');
+}
+
+// --- BLOCKLIST (v1.2) ---
 export async function getBlocklistItems({ page = 1, perPage = 30 } = {}) {
-  return rpc('incidents', 'getBlocklistItems', { page, perPage });
+  return rpc('incidents', 'getBlocklistItems', { page, perPage }, 'v1.2');
 }
 
 export async function addToBlocklist({ hashType, hashList, sourceInfo }) {
-  return rpc('incidents', 'addToBlocklist', { hashType, hashList, sourceInfo });
+  return rpc('incidents', 'addToBlocklist', { hashType, hashList, sourceInfo }, 'v1.2');
 }
 
 export async function removeFromBlocklist({ hashItemIds }) {
-  return rpc('incidents', 'removeFromBlocklist', { hashItemIds });
+  return rpc('incidents', 'removeFromBlocklist', { hashItemIds }, 'v1.2');
 }
 
-// --- TASKS (scan, isolate, restore) ---
+// --- TASKS ---
 export async function createScanTask({ targetIds, type = 1, name }) {
-  // type: 1=Quick, 2=Full, 3=Memory, 4=Custom
   return rpc('network', 'createScanTask', {
     targetIds,
     type,
@@ -85,15 +117,24 @@ export async function createScanTask({ targetIds, type = 1, name }) {
 }
 
 export async function createIsolateEndpointTask({ endpointIds }) {
-  return rpc('network', 'createIsolateEndpointTask', { endpointIds });
+  return rpc('incidents', 'createIsolateEndpointTask', { endpointIds }, 'v1.1');
 }
 
 export async function createRestoreEndpointFromIsolationTask({ endpointIds }) {
-  return rpc('network', 'createRestoreEndpointFromIsolationTask', { endpointIds });
+  return rpc('incidents', 'createRestoreEndpointFromIsolationTask', { endpointIds }, 'v1.1');
 }
 
 export async function getTaskStatus({ taskId }) {
   return rpc('network', 'getTaskStatus', { taskId });
+}
+
+// --- INVESTIGATION ---
+export async function collectInvestigationPackage({ endpointId }) {
+  return rpc('investigation', 'collectInvestigationPackage', { endpointId });
+}
+
+export async function killProcess({ endpointId, processId }) {
+  return rpc('investigation', 'killProcess', { endpointId, processId });
 }
 
 // --- POLICIES ---
@@ -105,12 +146,52 @@ export async function getPolicyDetails({ policyId }) {
   return rpc('policies', 'getPolicyDetails', { policyId });
 }
 
-// --- COMPANIES (MSP) ---
-export async function getCompaniesList({ page = 1, perPage = 30 } = {}) {
-  return rpc('companies', 'getCompaniesList', { page, perPage });
-}
-
 // --- REPORTS ---
 export async function getReportsList({ page = 1, perPage = 30 } = {}) {
   return rpc('reports', 'getReportsList', { page, perPage });
+}
+
+// --- POLICIES MANAGEMENT ---
+export async function createPolicy({ name, description, settings, inheritedPolicy }) {
+  return rpc('policies', 'createPolicy', {
+    name,
+    ...(description && { description }),
+    ...(settings && { settings }),
+    ...(inheritedPolicy && { inheritedPolicy }),
+  });
+}
+
+export async function updatePolicy({ policyId, name, description, settings }) {
+  return rpc('policies', 'updatePolicy', {
+    policyId,
+    ...(name && { name }),
+    ...(description && { description }),
+    ...(settings && { settings }),
+  });
+}
+
+export async function deletePolicy({ policyId }) {
+  return rpc('policies', 'deletePolicy', { policyId });
+}
+
+export async function assignPoliciesToEndpoints({ endpointIds, policyId }) {
+  return rpc('network', 'assignPoliciesToEndpoints', { endpointIds, policyId });
+}
+
+export async function assignPoliciesToGroups({ groupIds, policyId }) {
+  return rpc('network', 'assignPoliciesToGroups', { groupIds, policyId });
+}
+
+// --- POLICY CLONING ---
+export async function clonePolicy({ policyId, name }) {
+  // GravityZone clones by creating a new policy inheriting from existing one
+  return rpc('policies', 'createPolicy', {
+    name,
+    inheritedPolicy: policyId,
+  });
+}
+
+// --- SET POLICY MODULES STATE ---
+export async function setPolicyModulesState({ policyId, settings }) {
+  return rpc('policies', 'setPolicyModulesState', { policyId, settings });
 }
