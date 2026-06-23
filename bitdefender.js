@@ -195,3 +195,23 @@ export async function clonePolicy({ policyId, name }) {
 export async function setPolicyModulesState({ policyId, settings }) {
   return rpc('policies', 'setPolicyModulesState', { policyId, settings });
 }
+
+// --- REPORTS ---
+export async function createReport({ name, type, targetIds, scheduledInfo, emailList, options }) {
+  return rpc('reports', 'createReport', {
+    name,
+    type,
+    targetIds,
+    ...(scheduledInfo && { scheduledInfo }),
+    ...(emailList && { emailList }),
+    ...(options && { options }),
+  });
+}
+
+export async function getDownloadLinks({ reportId }) {
+  return rpc('reports', 'getDownloadLinks', { reportId });
+}
+
+export async function deleteReport({ reportId }) {
+  return rpc('reports', 'deleteReport', { reportId });
+}
