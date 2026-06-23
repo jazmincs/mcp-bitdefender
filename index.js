@@ -379,6 +379,60 @@ app.all('/mcp', async (req, res) => {
     }
   );
 
+  server.tool('list_reports',
+    'Lista los reportes programados existentes en GravityZone.',
+    {
+      page: z.number().optional().default(1),
+      perPage: z.number().optional().default(30),
+    },
+    async (p) => {
+      const r = await BD.getReportsList(p);
+      return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] };
+    }
+  );
+
+  server.tool('create_report',
+    'Crea un reporte instantáneo o programado. Tipos: 1=Endpoint Protection, 2=Encryption, 4=Security Audit, 5=Network Status, 6=Update Status, 7=Top Malware, 8=Top Infected, 9=Blocked Websites, 12=Network Attack Defense.',
+    {
+      name: z.string().describe('Nombre del reporte'),
+      type: z.number().describe('Tipo de reporte (1-12)'),
+      targetIds: z.array(z.string()).describe('IDs de endpoints o grupos objetivo'),
+      scheduledInfo: z.object({
+        occurrence: z.number().describe('2=hourly, 3=daily, 4=weekly, 5=monthly'),
+        startHour: z.number().optional(),
+        startMinute: z.number().optional(),
+        interval: z.number().optional(),
+      }).optional().describe('Omitir para reporte instantáneo'),
+      emailList: z.array(z.string()).optional().describe('Emails destinatarios'),
+    },
+    async (p) => {
+      const r = await BD.createReport(p);
+      return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] };
+    }
+  );
+
+  server.tool('get_download_links',
+    'Obtiene los links de descarga de un reporte. Devuelve URL del ZIP con CSV y PDF.',
+    {
+      reportId: z.string().describe('ID del reporte'),
+    },
+    async ({ reportId }) => {
+      const r = await BD.getDownloadLinks({ reportId });
+      return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] };
+    }
+  );
+
+  server.tool('delete_report',
+    'Elimina un reporte de GravityZone.',
+    {
+      reportId: z.string().describe('ID del reporte a eliminar'),
+    },
+    async ({ reportId }) => {
+      const r = await BD.deleteReport({ reportId });
+      return { content: [{ type: 'text', text: JSON.stringify(r, null, 2) }] };
+    }
+  );
+
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
