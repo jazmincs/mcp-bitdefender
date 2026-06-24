@@ -392,18 +392,57 @@ app.all('/mcp', async (req, res) => {
   );
 
   server.tool('create_report',
-    'Crea un reporte instantáneo o programado. Tipos: 1=Endpoint Protection, 2=Encryption, 4=Security Audit, 5=Network Status, 6=Update Status, 7=Top Malware, 8=Top Infected, 9=Blocked Websites, 12=Network Attack Defense.',
+    `Crea un reporte instantáneo o programado en GravityZone.
+
+TIPOS DISPONIBLES:
+1=Antiphishing Activity, 2=Blocked Applications, 3=Blocked Websites, 4=Customer Status Overview,
+5=Data Protection, 6=Device Control Activity, 7=Endpoint Modules Status, 8=Endpoint Protection Status,
+9=Firewall Activity, 10=License Status, 12=Malware Status, 14=Network Status, 15=On Demand Scanning,
+17=Security Audit, 19=Top 10 Detected Malware, 20=Top 10 Infected Companies, 21=Top 10 Infected Endpoints,
+22=Update Status, 30=Endpoint Encryption Status, 31=HyperDetect Activity, 32=Network Patch Status,
+34=Network Incidents, 36=Integrity Monitoring Activity.
+
+OPCIONES requeridas por tipo (campo options.reportingInterval):
+- Requerido en: 1,2,3,4,5,6,9,12,15,17,19,20,21,31,34,36
+- NO requerido en: 7,8,10,14,22,30 (policy compliance, server status, upgrade)
+
+reportingInterval valores (depende de occurrence):
+- occurrence=1 instant: reportingInterval=0
+- occurrence=3 daily: 0=Today, 1=Last day, 2=This week
+- occurrence=5 monthly: 4=This month, 5=Last month, 7=Last 3 months
+
+Para reportes instantáneos omite scheduledInfo y usa reportingInterval=0 en options si el tipo lo requiere.`,
     {
       name: z.string().describe('Nombre del reporte'),
-      type: z.number().describe('Tipo de reporte (1-12)'),
+      type: z.number().describe('Tipo de reporte según la lista'),
       targetIds: z.array(z.string()).describe('IDs de endpoints o grupos objetivo'),
       scheduledInfo: z.object({
-        occurrence: z.number().describe('2=hourly, 3=daily, 4=weekly, 5=monthly'),
-        startHour: z.number().optional(),
-        startMinute: z.number().optional(),
-        interval: z.number().optional(),
+        occurrence: z.number().describe('1=instant, 2=hourly, 3=daily, 4=weekly, 5=monthly, 6=yearly'),
+        interval: z.number().optional().describe('Solo para occurrence=2, horas entre 1-24'),
+        startHour: z.number().optional().describe('Solo para occurrence=3,4,5'),
+        startMinute: z.number().optional().describe('Solo para occurrence=3,4,5'),
+        days: z.array(z.number()).optional().describe('Solo para occurrence=4, días 0=Dom a 6=Sáb'),
+        day: z.number().optional().describe('Solo para occurrence=5,6, día del mes 1-31'),
+        month: z.number().optional().describe('Solo para occurrence=6, mes 1-12'),
       }).optional().describe('Omitir para reporte instantáneo'),
-      emailList: z.array(z.string()).optional().describe('Emails destinatarios'),
+      options: z.object({
+        reportingInterval: z.number().optional().describe('Intervalo de reporte. Para instantáneo usar 0. Ver tabla de valores según occurrence.'),
+        filterType: z.number().optional().describe('0=todos los endpoints, 1=solo con problemas/filtros'),
+        antivirusOn: z.boolean().optional(),
+        antivirusOff: z.boolean().optional(),
+        updated: z.boolean().optional(),
+        outdated: z.boolean().optional(),
+        disabled: z.boolean().optional(),
+        pendingRestart: z.boolean().optional(),
+        online: z.boolean().optional(),
+        offline: z.boolean().optional(),
+        trafficAttempts: z.boolean().optional(),
+        blockedEmails: z.boolean().optional(),
+        blockedWebsites: z.boolean().optional(),
+        detailedExport: z.array(z.number()).optional(),
+        skipSummary: z.boolean().optional(),
+      }).optional().describe('Opciones según tipo. Muchos tipos requieren reportingInterval=0 para instantáneo.'),
+      emailList: z.array(z.string()).optional().describe('Emails destinatarios. Solo para reportes programados con scheduledInfo.'),
     },
     async (p) => {
       const r = await BD.createReport(p);
