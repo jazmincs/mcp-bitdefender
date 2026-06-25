@@ -3,22 +3,24 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import express from 'express';
 import { z } from 'zod';
 import * as BD from './bitdefender.js';
+import { setupOAuth } from './oauth.js';
 
 const app = express();
 app.use(express.json());
+
+// Setup OAuth 2.0
+setupOAuth(app);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'mcp-bitdefender', timestamp: new Date().toISOString() });
 });
 
 app.all('/mcp', async (req, res) => {
-    // --- AUTENTICACIÓN ---
+    // --- AUTENTICACIÓN OAuth Bearer Token ---
   const authHeader = req.headers['authorization'] || '';
-  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  const queryToken = req.query.token || '';
-  const token = bearerToken || queryToken;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (process.env.MCP_SECRET_TOKEN && token !== process.env.MCP_SECRET_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({ error: 'Unauthorized', error_description: 'Invalid access token' });
   }
 
 const server = new McpServer({ name: 'bitdefender-mcp', version: '2.0.0' });
