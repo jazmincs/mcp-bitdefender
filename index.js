@@ -11,7 +11,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'mcp-bitdefender', timestamp: new Date().toISOString() });
 });
 
-app.all('/mcp2', async (req, res) => {
+app.all('/mcp', async (req, res) => {
     // --- AUTENTICACIÓN ---
   const authHeader = req.headers['authorization'] || '';
   const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -489,6 +489,6 @@ Para reportes instantáneos omite scheduledInfo y usa reportingInterval=0 en opt
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Bitdefender MCP server v2 listening on http://0.0.0.0:${PORT}/mcp2`);
+  console.log(`Bitdefender MCP server v2 listening on http://0.0.0.0:${PORT}/mcp`);
   console.log(`Health: http://0.0.0.0:${PORT}/health`);
 });
