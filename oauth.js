@@ -1,3 +1,4 @@
+import express from "express";
 // OAuth 2.0 simplificado para MCP interno
 // Flujo: Authorization Code Grant
 
