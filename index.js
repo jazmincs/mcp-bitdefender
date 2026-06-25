@@ -12,7 +12,16 @@ app.get('/health', (req, res) => {
 });
 
 app.all('/mcp2', async (req, res) => {
-  const server = new McpServer({ name: 'bitdefender-mcp', version: '2.0.0' });
+    // --- AUTENTICACIÓN ---
+  const authHeader = req.headers['authorization'] || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  const queryToken = req.query.token || '';
+  const token = bearerToken || queryToken;
+  if (process.env.MCP_SECRET_TOKEN && token !== process.env.MCP_SECRET_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+const server = new McpServer({ name: 'bitdefender-mcp', version: '2.0.0' });
 
   // --- ENDPOINTS ---
   server.tool('list_endpoints',
@@ -83,11 +92,12 @@ app.all('/mcp2', async (req, res) => {
 
   // --- INCIDENTS ---
   server.tool('list_incidents',
-    'Lista incidentes EDR detectados por Bitdefender. Filtra por fecha, severidad, estado.',
+    'Lista incidentes EDR detectados por Bitdefender. Filtra por empresa, severidad y estado.',
     {
       page: z.number().optional().default(1),
       perPage: z.number().optional().default(30),
       filters: z.object({
+        companyId: z.string().optional().describe('ID de la empresa para filtrar incidentes por cliente. Ej: ID de Tecnofil.'),
         severity: z.number().optional().describe('1=Info, 2=Low, 3=Medium, 4=High, 5=Critical'),
         status: z.number().optional().describe('1=Open, 2=Closed, 3=In Progress'),
       }).optional().default({}),
